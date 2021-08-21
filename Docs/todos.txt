@@ -1,0 +1,3 @@
+Need to do:
+- Move to better build system, use FreeRTOS instead of Arduino
+- Figure out GDL90 spec

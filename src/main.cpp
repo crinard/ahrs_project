@@ -39,8 +39,7 @@ void loop() {
 
   //Callback functions TODO: Move to better build structures
   ins_rx_cb(&ins_data);
-  GDL_90_tx_cb(&ins_data);
+  // GDL_90_tx_cb(&ins_data);
   blink_led(BLUE_LED);
-  blink_led(RED_LED);
   delay(ONE_SECOND);
 }
