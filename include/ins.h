@@ -5,8 +5,8 @@
 #include "errors.h"
 
 typedef struct INS_Data {
-    float roll;
-    float pitch;
+    int16_t roll;
+    int16_t pitch;
 } INS_Data_t;
 
 /**
