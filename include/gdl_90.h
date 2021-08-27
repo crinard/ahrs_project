@@ -4,13 +4,14 @@
 #include "ins.h"
 #include "errors.h"
 
-#define GDL_90_HEARTBEAT_MSG_LEN 7
-#define GDL_90_ID_MSG_LEN 39
+#define GDL_90_HEARTBEAT_MSG_LEN 11
+#define GDL_90_OWNSHIP_MSG_LEN 32
+#define GDL_90_ID_MSG_LEN 43
+#define GDL_90_AHRS_MSG_LEN 16
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#define NETWORK_NAME "CARTAGENA-H2"
-#define NETWORK_PASSWORD  "Cartagena1914"
+
 #define RX_PORT 63093
 #define TX_PORT 4000
 
