@@ -16,12 +16,12 @@ error_t blink_led(led_t led) {
     {
         case (RED_LED):
             digitalWrite(RED_LED_PIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-            delay(ONE_SECOND/100); //TODO: make call non-blocking
+            delay(ONE_SECOND/170); //TODO: make call non-blocking
             digitalWrite(RED_LED_PIN, HIGH);   // Turn the LED on (Note that LOW is the voltage level
             break;
         case (BLUE_LED):
             digitalWrite(BLUE_LED_PIN, LOW);
-            delay(ONE_SECOND/100); //TODO: make call non-blocking
+            delay(ONE_SECOND/170); //TODO: make call non-blocking
             digitalWrite(BLUE_LED_PIN, HIGH);
             break;
         default:

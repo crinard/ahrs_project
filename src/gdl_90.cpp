@@ -87,13 +87,13 @@ error_t GDL_90_init(void) {
 };
 
 error_t GDL_90_tx_cb(INS_Data_t *data) {
-    // crc_inject(&m_heartbeat_message_tx_buffer[0], sizeof(m_heartbeat_message_tx_buffer));
+    crc_inject(&m_heartbeat_message_tx_buffer[0], sizeof(m_heartbeat_message_tx_buffer));
     crc_inject(&m_id_message_tx_buffer[0], sizeof(m_id_message_tx_buffer));
-    // crc_inject(&m_ahrs_message_tx_buffer[0], sizeof(m_ahrs_message_tx_buffer));
+    crc_inject(&m_ahrs_message_tx_buffer[0], sizeof(m_ahrs_message_tx_buffer));
     crc_inject(&m_ownship_message_tx_buffer[0], sizeof(m_ownship_message_tx_buffer));
 
     Serial.print("Ownship message = ");
-    //Send heartbeat message
+    //Send ownship message
     m_udp.beginPacket(m_foreflight_address, TX_PORT);
     for (uint8_t i = 0; i < sizeof(m_ownship_message_tx_buffer); i++) {
         m_udp.write(m_ownship_message_tx_buffer[i]);
@@ -102,16 +102,16 @@ error_t GDL_90_tx_cb(INS_Data_t *data) {
     }
     m_udp.endPacket();
     Serial.println("\n");
-    // Serial.print("Heartbeat message = ");
-    // //Send heartbeat message
-    // m_udp.beginPacket(m_foreflight_address, TX_PORT);
-    // for (uint8_t i = 0; i < sizeof(m_heartbeat_message_tx_buffer); i++) {
-    //     m_udp.write(m_heartbeat_message_tx_buffer[i]);
-    //     Serial.print(m_heartbeat_message_tx_buffer[i]);
-    //     Serial.print(",");
-    // }
-    // m_udp.endPacket();
-    // Serial.println("\n");
+    Serial.print("Heartbeat message = ");
+    //Send heartbeat message
+    m_udp.beginPacket(m_foreflight_address, TX_PORT);
+    for (uint8_t i = 0; i < sizeof(m_heartbeat_message_tx_buffer); i++) {
+        m_udp.write(m_heartbeat_message_tx_buffer[i]);
+        Serial.print(m_heartbeat_message_tx_buffer[i]);
+        Serial.print(",");
+    }
+    m_udp.endPacket();
+    Serial.println("\n");
 
     //Send ID message
     Serial.print("Id message = ");
