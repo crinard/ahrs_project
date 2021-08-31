@@ -89,7 +89,7 @@ error_t GDL_90_init(void) {
 error_t GDL_90_tx_cb(INS_Data_t *data) {
     crc_inject(&m_heartbeat_message_tx_buffer[0], sizeof(m_heartbeat_message_tx_buffer));
     crc_inject(&m_id_message_tx_buffer[0], sizeof(m_id_message_tx_buffer));
-    crc_inject(&m_ahrs_message_tx_buffer[0], sizeof(m_ahrs_message_tx_buffer));
+    // crc_inject(&m_ahrs_message_tx_buffer[0], sizeof(m_ahrs_message_tx_buffer));
     crc_inject(&m_ownship_message_tx_buffer[0], sizeof(m_ownship_message_tx_buffer));
 
     Serial.print("Ownship message = ");
