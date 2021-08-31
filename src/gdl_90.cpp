@@ -4,8 +4,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define NETWORK_NAME "Sirena"
-#define NETWORK_PASSWORD  "popoyo2021"
+#define NETWORK_NAME "Airport Time Capsule"
+#define NETWORK_PASSWORD  "addie123"
 
 // buffers for receiving and sending data
 static char m_packet_buffer[UDP_TX_PACKET_MAX_SIZE + 1]; //buffer to hold incoming packet,
@@ -35,14 +35,14 @@ static unsigned char m_id_message_tx_buffer[GDL_90_ID_MSG_LEN] = {0x7E, 0x65, 0,
     0, 0, 0, 1, //Capabilities mask
     0, 0, 0x7E //CRC and end bit
 };
-static unsigned char m_ahrs_message_tx_buffer[GDL_90_AHRS_MSG_LEN] = {0x7E, 0x65, 0x01, //Message header
-    0x00, 0x00, //Roll
-    0x00, 0x00, //Pitch
-    0x00, 0x00, //Heading
-    0x00, 0x00, //Knots Indicated Airspeed
-    0x00, 0x00, //Knots True Airspeed
-    0, 0, 0x7E //CRC and end bit.
-};
+// static unsigned char m_ahrs_message_tx_buffer[GDL_90_AHRS_MSG_LEN] = {0x7E, 0x65, 0x01, //Message header
+//     0x00, 0x00, //Roll
+//     0x00, 0x00, //Pitch
+//     0x00, 0x00, //Heading
+//     0x00, 0x00, //Knots Indicated Airspeed
+//     0x00, 0x00, //Knots True Airspeed
+//     0, 0, 0x7E //CRC and end bit.
+// };
 
 static void crc_init(void) {
     uint16_t i, bitctr, crc;
@@ -102,20 +102,20 @@ error_t GDL_90_tx_cb(INS_Data_t *data) {
     }
     m_udp.endPacket();
     Serial.println("\n");
-    Serial.print("Heartbeat message = ");
-    //Send heartbeat message
-    m_udp.beginPacket(m_foreflight_address, TX_PORT);
-    for (uint8_t i = 0; i < sizeof(m_heartbeat_message_tx_buffer); i++) {
-        m_udp.write(m_heartbeat_message_tx_buffer[i]);
-        Serial.print(m_heartbeat_message_tx_buffer[i]);
-        Serial.print(",");
-    }
-    m_udp.endPacket();
-    Serial.println("\n");
+    // Serial.print("Heartbeat message = ");
+    // //Send heartbeat message
+    // m_udp.beginPacket(m_generic_address, TX_PORT);
+    // for (uint8_t i = 0; i < sizeof(m_heartbeat_message_tx_buffer); i++) {
+    //     m_udp.write(m_heartbeat_message_tx_buffer[i]);
+    //     Serial.print(m_heartbeat_message_tx_buffer[i]);
+    //     Serial.print(",");
+    // }
+    // m_udp.endPacket();
+    // Serial.println("\n");
 
     //Send ID message
     Serial.print("Id message = ");
-    m_udp.beginPacket(m_foreflight_address, TX_PORT);
+    m_udp.beginPacket(m_generic_address, TX_PORT);
     for (uint8_t i = 0; i < sizeof(m_id_message_tx_buffer); i++) {
         m_udp.write(m_id_message_tx_buffer[i]);
         Serial.print(m_id_message_tx_buffer[i]);
@@ -124,16 +124,16 @@ error_t GDL_90_tx_cb(INS_Data_t *data) {
     Serial.println("\n");
     m_udp.endPacket();
 
-    //Send AHRS message
-    Serial.print("AHRS message = ");
-    m_udp.beginPacket(m_foreflight_address, TX_PORT);
-    for (uint8_t i = 0; i < sizeof(m_ahrs_message_tx_buffer); i++) {
-        m_udp.write(m_ahrs_message_tx_buffer[i]);
-        Serial.print(m_ahrs_message_tx_buffer[i]);
-        Serial.print(",");
-    }
-    Serial.println("\n");
-    m_udp.endPacket();
+    // //Send AHRS message
+    // Serial.print("AHRS message = ");
+    // m_udp.beginPacket(m_foreflight_address, TX_PORT);
+    // for (uint8_t i = 0; i < sizeof(m_ahrs_message_tx_buffer); i++) {
+    //     m_udp.write(m_ahrs_message_tx_buffer[i]);
+    //     Serial.print(m_ahrs_message_tx_buffer[i]);
+    //     Serial.print(",");
+    // }
+    // Serial.println("\n");
+    // m_udp.endPacket();
     return ERROR_OK;
 };
 

@@ -19,6 +19,6 @@ void setup() {
 
 void loop() {
   GDL_90_tx_cb(&m_ins_data);
-  delay(50);
+  delay(200);
   blink_led(BLUE_LED);
 }
