@@ -4,6 +4,8 @@
 #define ARDUINO_RUNNING_CORE 1
 #endif
 
+#define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
 #endif
@@ -17,7 +19,6 @@ void setup() {
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
   
-  // Now set up two tasks to run independently.
   xTaskCreatePinnedToCore(
     TaskBlink
     ,  "TaskBlink"   // A name just for humans
@@ -57,9 +58,9 @@ void TaskBlink(void *pvParameters)  // This is a task.
   for (;;) // A Task shall never return or exit.
   {
     digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-    vTaskDelay(100);  // one tick delay (15ms) in between reads for stability
+    vTaskDelay(ms_to_tick(100)); // On for 1/10 of s
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-    vTaskDelay(100);  // one tick delay (15ms) in between reads for stability
+    vTaskDelay(ms_to_tick(900));  // Wait 9/10 s.
     Serial.println("hi there");
   }
 }
