@@ -1,3 +1,8 @@
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
+
+/* Builtins and generic defines */
 #if CONFIG_FREERTOS_UNICORE
 #define ARDUINO_RUNNING_CORE 0
 #else
@@ -10,8 +15,17 @@
 #define LED_BUILTIN 13
 #endif
 
+/* WifiAP defines */
+#define RX_PORT 63093
+#define TX_PORT 4000
+
+const char *ssid = "yourAP";
+const char *debug_tx_address = "198.168.255.255";
+static WiFiServer server(63093);
+
 // define two tasks for Blink & AnalogRead
 void TaskBlink( void *pvParameters );
+void TaskWifiAP (void *pvParameters );
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -19,6 +33,7 @@ void setup() {
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
   
+  // blink task
   xTaskCreatePinnedToCore(
     TaskBlink
     ,  "TaskBlink"   // A name just for humans
@@ -28,7 +43,22 @@ void setup() {
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
 
-  // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
+  // WiFi AP setup
+  WiFi.softAP(ssid);
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(myIP);
+  server.begin();
+  Serial.println("Server started");
+
+  xTaskCreatePinnedToCore(
+    TaskWifiAP
+    ,  "TaskWifiAP"   // A name just for humans
+    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  NULL
+    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  NULL 
+    ,  ARDUINO_RUNNING_CORE);
 }
 
 void loop()
@@ -62,5 +92,12 @@ void TaskBlink(void *pvParameters)  // This is a task.
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
     vTaskDelay(ms_to_tick(900));  // Wait 9/10 s.
     Serial.println("hi there");
+  }
+}
+
+void TaskWifiAP (void *pvParameters ) {
+  for (;;) {
+    Serial.println("Wifi task");
+    vTaskDelay(ms_to_tick(5000));
   }
 }
