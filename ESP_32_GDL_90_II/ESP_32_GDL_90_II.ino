@@ -18,18 +18,19 @@
 #endif
 
 /* WifiAP defines */
+#define NET_NAME "hi there"
 #define RX_PORT 63093
 #define TX_PORT 4000
+static WiFiUDP udp;
 
-const char *ssid = "yourAP";
-static WiFiUDP inbound_udp;
-
-char packetBuffer[255]; //buffer to hold incoming packet
-char ReplyBuffer[] = "acknowledged";       // a string to send back
+static uint16_t Crc16Table[256] = {0};
+IPAddress g_foreflight_ip = IPAddress(192,168,255,255); //Default to very visible for debugging
+#define GDL_90_OWNSHIP_MSG_LEN 32
 
 // define two tasks for Blink & AnalogRead
 void TaskBlink( void *pvParameters );
 void TaskGetFFIP (void *pvParameters );
+void TaskSendOwnshipMsg(void *pvParameters);
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -47,13 +48,9 @@ void setup() {
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
 
-  // WiFi AP setup
-  WiFi.softAP(ssid);
-  IPAddress myIP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
-  inbound_udp.begin(63093);
-  Serial.println("Server started");
+  // WiFi AP setup, independent of tasks.
+  WiFi.softAP(NET_NAME);
+  udp.begin(RX_PORT);
 
   xTaskCreatePinnedToCore(
     TaskGetFFIP
@@ -63,6 +60,15 @@ void setup() {
     ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
+    
+  xTaskCreatePinnedToCore(
+  TaskSendOwnshipMsg
+  ,  "TaskSendOwnshipMsg"   // A name just for humans
+  ,  4096  // This stack size can be checked & adjusted by reading the Stack Highwater
+  ,  NULL
+  ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+  ,  NULL 
+  ,  ARDUINO_RUNNING_CORE);
 }
 
 void loop()
@@ -77,51 +83,90 @@ void loop()
 void TaskBlink(void *pvParameters)  // This is a task.
 {
   (void) pvParameters;
-
-/*
-  Blink
-  Turns on an LED on for one second, then off for one second, repeatedly.
-    
-  If you want to know what pin the on-board LED is connected to on your ESP32 model, check
-  the Technical Specs of your board.
-*/
-
-  // initialize digital LED_BUILTIN on pin 13 as an output.
   pinMode(LED_BUILTIN, OUTPUT);
-
   for (;;) // A Task shall never return or exit. 
   {
     digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
     vTaskDelay(ms_to_tick(100)); // On for 1/10 of s
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    Serial.println(g_foreflight_ip);
     vTaskDelay(ms_to_tick(900));  // Wait 9/10 s.
   }
 }
 
 void TaskGetFFIP (void *pvParameters ) {
+  // Variable setup.
+  static char rx_buf[255]; //buffer to hold incoming packet
   for (;;) {
     // if there's data available, read a packet
-    int packetSize = inbound_udp.parsePacket();
+    int packetSize = udp.parsePacket();
     if (packetSize) {
-      Serial.print("Received packet of size ");
-      Serial.println(packetSize);
       Serial.print("From ");
-      IPAddress remoteIp = inbound_udp.remoteIP();
-      Serial.print(remoteIp);
-      Serial.print(", port ");
-      Serial.println(inbound_udp.remotePort());
-      // read the packet into packetBufffer
-      int len = inbound_udp.read(packetBuffer, 255);
-      if (len > 0) {
-        packetBuffer[len] = 0;
-      }
+      g_foreflight_ip = udp.remoteIP(); //Reset the foreflight IP address.
+      Serial.print(g_foreflight_ip);
+      // read the packet into packetBufffer. 
+      // TODO: Check that it's actually FF and get the right port to transmit on.
+      int len = udp.read(rx_buf, 255);
       Serial.println("Contents:");
-      Serial.println(packetBuffer);
-      // send a reply, to the IP address and port that sent us the packet we received
-//      inbound_udp.beginPacket(inbound_udp.remoteIP(), inbound_udp.remotePort());
-//      inbound_udp.write(ReplyBuffer);
-//      inbound_udp.endPacket();
     }
-    vTaskDelay(ms_to_tick(5000));
+    vTaskDelay(ms_to_tick(5000)); //Wait 5 seconds, max frequency of inbound messages.
+  }
+}
+
+static void crc_init(void) {
+    uint16_t i, bitctr, crc;
+    for (i = 0; i < 256; i++)
+    {
+        crc = (i << 8);
+        for (bitctr = 0; bitctr < 8; bitctr++)
+        {
+            crc = (crc << 1) ^ ((crc & 0x8000) ? 0x1021 : 0);
+        }
+        Crc16Table[i] = crc;
+    }
+}
+
+static void crc_inject(unsigned char *msg, uint32_t length) {
+    uint32_t i;
+    uint16_t crc = 0;
+    // Return – CRC of the block
+    // i – Starting address of message
+    // i – Length of message
+    for (i = 1; i < length - 3; i++) {
+        crc = Crc16Table[crc >> 8] ^ (crc << 8) ^ msg[i];
+    }
+    //Now we have the crc, put it in the bytes third from last and second from last
+    msg[length - 3] = (uint8_t)(crc & 0x00FF);
+    msg[length - 2] = (uint8_t)((crc & 0xFF00) >> 8);
+}
+
+void TaskSendOwnshipMsg(void *pvParameters) {
+  crc_init();
+  static unsigned char ownship_message_tx_buffer[GDL_90_OWNSHIP_MSG_LEN] = {0x7E, 10, 0x01, 
+    0x00, 0x00, 0x00,
+    0x00, 0x20, 0x00, 
+    0x40, 0x00, 0x00,
+    0x00, 0xF2, 0x88,
+    0x00, 0x10, 0x01,
+    0x02,
+    0x01,
+    0x4E, 0x38, 0x32, 0x35, 0x56, 0x20, 0x20, 0x20, 
+    0x00,
+    0, 0, 0x7E
+  };
+
+  udp.begin(TX_PORT);
+  for(;;) {
+//    crc_inject(&ownship_message_tx_buffer[0], sizeof(ownship_message_tx_buffer));
+    if (g_foreflight_ip != IPAddress(192,168,255,255)) {
+      udp.beginPacket(g_foreflight_ip, TX_PORT);
+      #pragma unroll(full)
+      const char hello[] = "HELLO";
+      for(size_t i = 0; i < sizeof(hello); i++) {
+      udp.write(hello[i]);
+      }
+      udp.endPacket();
+    }
+    vTaskDelay(ms_to_tick(200));
   }
 }
