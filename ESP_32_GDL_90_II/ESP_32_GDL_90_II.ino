@@ -2,6 +2,7 @@
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 #include <WiFiUdp.h>
+#include <string.h>
 
 /* Builtins and generic defines */
 #if CONFIG_FREERTOS_UNICORE
@@ -23,7 +24,7 @@
 const char *ssid = "yourAP";
 const IPAddress debug_tx_address = IPAddress(192, 168, 0, 33);
 static WiFiServer server(80);
-static WiFiUDP udp;
+//static WiFiUDP udp;
 
 // define two tasks for Blink & AnalogRead
 void TaskBlink( void *pvParameters );
@@ -99,9 +100,13 @@ void TaskBlink(void *pvParameters)  // This is a task.
 void TaskGetFFIP (void *pvParameters ) {
   for (;;) {
     WiFiClient client = server.available();   // listen for incoming clients
-    
-    if (client) {                             // if you get a client,
+    if (client && client.connected() && client.available()) {                             // if you get a client,
       Serial.println("New Client.");           // print a message out the serial port
+      String currentLine = client.readString();             // read the buffer at once.
+      Serial.print("From: ");
+      Serial.print(client.remoteIP());
+      Serial.print(currentLine);                    // print it out the serial monitor
+      Serial.print
       client.stop();
     }
     // close the connection:
