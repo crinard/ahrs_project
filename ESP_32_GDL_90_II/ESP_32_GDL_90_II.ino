@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiAP.h>
+#include <WiFiUdp.h>
 
 /* Builtins and generic defines */
 #if CONFIG_FREERTOS_UNICORE
@@ -20,12 +21,13 @@
 #define TX_PORT 4000
 
 const char *ssid = "yourAP";
-const char *debug_tx_address = "198.168.255.255";
-static WiFiServer server(63093);
+const IPAddress debug_tx_address = IPAddress(192, 168, 0, 33);
+static WiFiServer server(80);
+static WiFiUDP udp;
 
 // define two tasks for Blink & AnalogRead
 void TaskBlink( void *pvParameters );
-void TaskWifiAP (void *pvParameters );
+void TaskGetFFIP (void *pvParameters );
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -37,7 +39,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     TaskBlink
     ,  "TaskBlink"   // A name just for humans
-    ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
     ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
@@ -52,11 +54,11 @@ void setup() {
   Serial.println("Server started");
 
   xTaskCreatePinnedToCore(
-    TaskWifiAP
-    ,  "TaskWifiAP"   // A name just for humans
-    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
+    TaskGetFFIP
+    ,  "TaskGetFFIP"   // A name just for humans
+    ,  4096  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
 }
@@ -85,19 +87,25 @@ void TaskBlink(void *pvParameters)  // This is a task.
   // initialize digital LED_BUILTIN on pin 13 as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
-  for (;;) // A Task shall never return or exit.
+  for (;;) // A Task shall never return or exit. 
   {
     digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
     vTaskDelay(ms_to_tick(100)); // On for 1/10 of s
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
     vTaskDelay(ms_to_tick(900));  // Wait 9/10 s.
-    Serial.println("hi there");
   }
 }
 
-void TaskWifiAP (void *pvParameters ) {
+void TaskGetFFIP (void *pvParameters ) {
   for (;;) {
-    Serial.println("Wifi task");
-    vTaskDelay(ms_to_tick(5000));
+    WiFiClient client = server.available();   // listen for incoming clients
+    
+    if (client) {                             // if you get a client,
+      Serial.println("New Client.");           // print a message out the serial port
+      client.stop();
+    }
+    // close the connection:
+    Serial.println("No Client");
+    vTaskDelay(ms_to_tick(200));
   }
 }
