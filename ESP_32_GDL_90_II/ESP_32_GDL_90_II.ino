@@ -44,7 +44,7 @@ void setup() {
     ,  "TaskBlink"   // A name just for humans
     ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
 
@@ -57,7 +57,7 @@ void setup() {
     ,  "TaskGetFFIP"   // A name just for humans
     ,  4096  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
     
@@ -154,16 +154,13 @@ void TaskSendOwnshipMsg(void *pvParameters) {
     0x00,
     0, 0, 0x7E
   };
-
-  udp.begin(TX_PORT);
   for(;;) {
-//    crc_inject(&ownship_message_tx_buffer[0], sizeof(ownship_message_tx_buffer));
+    crc_inject(&ownship_message_tx_buffer[0], sizeof(ownship_message_tx_buffer));
     if (g_foreflight_ip != IPAddress(192,168,255,255)) {
       udp.beginPacket(g_foreflight_ip, TX_PORT);
       #pragma unroll(full)
-      const char hello[] = "HELLO";
-      for(size_t i = 0; i < sizeof(hello); i++) {
-      udp.write(hello[i]);
+      for(size_t i = 0; i < sizeof(ownship_message_tx_buffer); i++) {
+        udp.write(ownship_message_tx_buffer[i]);
       }
       udp.endPacket();
     }
