@@ -22,9 +22,10 @@
 #define TX_PORT 4000
 
 const char *ssid = "yourAP";
-const IPAddress debug_tx_address = IPAddress(192, 168, 0, 33);
-static WiFiServer server(80);
-//static WiFiUDP udp;
+static WiFiUDP udp;
+
+char packetBuffer[255]; //buffer to hold incoming packet
+char ReplyBuffer[] = "acknowledged";       // a string to send back
 
 // define two tasks for Blink & AnalogRead
 void TaskBlink( void *pvParameters );
@@ -51,7 +52,7 @@ void setup() {
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
-  server.begin();
+  udp.begin(63093);
   Serial.println("Server started");
 
   xTaskCreatePinnedToCore(
@@ -99,18 +100,27 @@ void TaskBlink(void *pvParameters)  // This is a task.
 
 void TaskGetFFIP (void *pvParameters ) {
   for (;;) {
-    WiFiClient client = server.available();   // listen for incoming clients
-    if (client && client.connected() && client.available()) {                             // if you get a client,
-      Serial.println("New Client.");           // print a message out the serial port
-      String currentLine = client.readString();             // read the buffer at once.
-      Serial.print("From: ");
-      Serial.print(client.remoteIP());
-      Serial.print(currentLine);                    // print it out the serial monitor
-      Serial.print
-      client.stop();
+    // if there's data available, read a packet
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+      Serial.print("Received packet of size ");
+      Serial.println(packetSize);
+      Serial.print("From ");
+      IPAddress remoteIp = udp.remoteIP();
+      Serial.print(remoteIp);
+      Serial.print(", port ");
+      Serial.println(udp.remotePort());
+      // read the packet into packetBufffer
+      int len = udp.read(packetBuffer, 255);
+      if (len > 0) {
+        packetBuffer[len] = 0;
+      }
+      Serial.println("Contents:");
+      Serial.println(packetBuffer);
+      // send a reply, to the IP address and port that sent us the packet we received
+//      udp.beginPacket(udp.remoteIP(), udp.remotePort());
+//      udp.write(ReplyBuffer);
+//      udp.endPacket();
     }
-    // close the connection:
-    Serial.println("No Client");
-    vTaskDelay(ms_to_tick(200));
   }
 }
