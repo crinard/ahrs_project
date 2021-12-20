@@ -22,7 +22,7 @@
 #define TX_PORT 4000
 
 const char *ssid = "yourAP";
-static WiFiUDP udp;
+static WiFiUDP inbound_udp;
 
 char packetBuffer[255]; //buffer to hold incoming packet
 char ReplyBuffer[] = "acknowledged";       // a string to send back
@@ -52,7 +52,7 @@ void setup() {
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
-  udp.begin(63093);
+  inbound_udp.begin(63093);
   Serial.println("Server started");
 
   xTaskCreatePinnedToCore(
@@ -101,26 +101,27 @@ void TaskBlink(void *pvParameters)  // This is a task.
 void TaskGetFFIP (void *pvParameters ) {
   for (;;) {
     // if there's data available, read a packet
-    int packetSize = udp.parsePacket();
+    int packetSize = inbound_udp.parsePacket();
     if (packetSize) {
       Serial.print("Received packet of size ");
       Serial.println(packetSize);
       Serial.print("From ");
-      IPAddress remoteIp = udp.remoteIP();
+      IPAddress remoteIp = inbound_udp.remoteIP();
       Serial.print(remoteIp);
       Serial.print(", port ");
-      Serial.println(udp.remotePort());
+      Serial.println(inbound_udp.remotePort());
       // read the packet into packetBufffer
-      int len = udp.read(packetBuffer, 255);
+      int len = inbound_udp.read(packetBuffer, 255);
       if (len > 0) {
         packetBuffer[len] = 0;
       }
       Serial.println("Contents:");
       Serial.println(packetBuffer);
       // send a reply, to the IP address and port that sent us the packet we received
-//      udp.beginPacket(udp.remoteIP(), udp.remotePort());
-//      udp.write(ReplyBuffer);
-//      udp.endPacket();
+//      inbound_udp.beginPacket(inbound_udp.remoteIP(), inbound_udp.remotePort());
+//      inbound_udp.write(ReplyBuffer);
+//      inbound_udp.endPacket();
     }
+    vTaskDelay(ms_to_tick(5000));
   }
 }
