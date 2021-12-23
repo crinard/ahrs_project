@@ -3,6 +3,7 @@
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 #include <WiFiUdp.h>
+#include "imu.h"
 
 #define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
 
@@ -20,10 +21,9 @@ static IPAddress m_foreflight_ip = IPAddress(192,168,255,255); //Default to very
 /****** Tasks ******/
 static void TaskGetFFIP (void *pvParameters );
 static void TaskSendHeartbeatMsg( void *pvParameters );
-//static void TaskSendAHRS( void *pvParameters );
-
+static void TaskSendAHRS( void *pvParameters );
+static void TaskSendID( void *pvParameters);
 /****** Function prototypes ******/
-
 /**
  * @brief Initializes crc table for Flag byte and CRC.
  * @note See "GDL 90 Data Interface Specification, 560-1058-00, section 2.2" for details.
@@ -36,7 +36,7 @@ static void crc_init(void);
  * @note See "GDL 90 Data Interface Specification, 560-1058-00, section 2.2" for details.
  **/
 static void crc_inject(unsigned char *msg, uint32_t length);
-
+static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude_t attitude);
 /**
  * @brief Initializes all components needed for GDL90 w/ foreflight.
  **/
@@ -55,14 +55,14 @@ void gdl_90_init(void) {
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
 
-//  xTaskCreatePinnedToCore(
-//    TaskSendAHRS
-//    ,  "Send AHRS messages to Foreflight."
-//    ,  4096  // Stack size 
-//    ,  NULL
-//    ,  3  //Priority (0-3)
-//    ,  NULL 
-//    ,  ARDUINO_RUNNING_CORE);
+ xTaskCreatePinnedToCore(
+   TaskSendAHRS
+   ,  "Send AHRS messages to Foreflight."
+   ,  4096  // Stack size 
+   ,  NULL
+   ,  3  //Priority (0-3)
+   ,  NULL 
+   ,  ARDUINO_RUNNING_CORE);
 
   xTaskCreatePinnedToCore(
     TaskGetFFIP
@@ -72,6 +72,23 @@ void gdl_90_init(void) {
     ,  1  //Priority (0-3)
     ,  NULL 
     ,  ARDUINO_RUNNING_CORE);
+  xTaskCreatePinnedToCore(
+    TaskSendID
+    ,  "Send ID messages to Foreflight."
+    ,  4096  // Stack size 
+    ,  NULL
+    ,  1  //Priority (0-3)
+    ,  NULL 
+    ,  ARDUINO_RUNNING_CORE);
+//  xTaskCreatePinnedToCore(
+//    TaskSendAHRSReport
+//    ,  "Send AHRS report messages to Foreflight."
+//    ,  4096  // Stack size 
+//    ,  NULL
+//    ,  3  //Priority (0-3)
+//    ,  NULL 
+//    ,  ARDUINO_RUNNING_CORE);
+    
   
 }
 
@@ -88,7 +105,7 @@ static void crc_init(void) {
     }
 }
 
-static void crc_inject(unsigned char *msg, uint32_t length) {
+static void crc_inject(unsigned char *msg, size_t length) {
     uint32_t i;
     uint16_t crc = 0;
     // Return – CRC of the block
@@ -123,7 +140,7 @@ static void TaskGetFFIP (void *pvParameters ) {
 }
 
 static void TaskSendHeartbeatMsg( void *pvParameters ) {
-  static unsigned char heartbeat_msg[] = {0x7E, 10, 0b10000001, 0, 0, 0, 0, 0, 0x7E};
+  static unsigned char heartbeat_msg[] = {0x7E, 10, 0xFF, 0, 0, 0, 0, 0, 0x7E};
   for(;;) {
     crc_inject(&heartbeat_msg[0], sizeof(heartbeat_msg));
     if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
@@ -136,4 +153,65 @@ static void TaskSendHeartbeatMsg( void *pvParameters ) {
     }
     vTaskDelay(ms_to_tick(1000));
   }
+}
+
+void TaskSendAHRS(void *pvParameters) {
+  static uint8_t ahrs_msg[] = {0x7E, 0x65, 0x01, //Message header
+    0x7F, 0xFF, //Roll
+    0x7F, 0xFF, //Pitch
+    0x7F, 0xFF, //Heading
+    0x7F, 0xFF, //Knots Indicated Airspeed
+    0x7F, 0xFF, //Knots True Airspeed
+    0, 0, 0x7E //CRC and end bit.
+  };
+
+  for(;;) {
+    if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
+//      attitude_t attitude = get_attitude();
+      crc_inject(&ahrs_msg[0], sizeof(ahrs_msg));
+      udp.beginPacket(m_foreflight_ip, TX_PORT);
+      #pragma unroll(full)
+      for(size_t i = 0; i < sizeof(ahrs_msg); i++) {
+        udp.write(ahrs_msg[i]);
+      }
+      udp.endPacket();
+      Serial.println("AHRS sent");
+    }
+    vTaskDelay(ms_to_tick(200));
+  }
+}
+
+static void TaskSendID( void *pvParameters) {
+  static uint8_t id_msg[] = {0x7E, 0x65, 0, 1, //Message header
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //Serial number
+    0x61, 0x68, 0x72, 0x73, 0x00, 0x00, 0x00, 0x00, //Device Name
+    0x61, 0x68, 0x72, 0x73, 0x00, 0x00, 0x00, 0x00, //Device long name (16B)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, //Capabilities mask. TODO: try messing with the bits here.
+    0x00, 0x00, 0x7E 
+  };
+  
+  for(;;) {
+    if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
+      crc_inject(&id_msg[0], sizeof(id_msg));
+      udp.beginPacket(m_foreflight_ip, TX_PORT);
+      #pragma unroll(full)
+      for(size_t i = 0; i < sizeof(id_msg); i++) {
+        udp.write(id_msg[i]);
+      }
+      udp.endPacket();
+    }
+    vTaskDelay(ms_to_tick(200));
+  }
+}
+
+static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude_t attitude) {
+    //Foreflight website says big-endian, so I'm going to need to mask the raw ints. 
+    ahrs_msg_buf[3] = (attitude.roll >> 8) & 0xFF;
+    ahrs_msg_buf[4] = attitude.roll & 0xFF;
+    ahrs_msg_buf[5] = (attitude.pitch >> 8) & 0xFF;
+    ahrs_msg_buf[6] = attitude.pitch & 0xFF;
+    Serial.printf("roll = %i, pitch = %i\n", attitude.roll, attitude.pitch);
+    crc_inject(ahrs_msg_buf, sizeof(buflen));
+    return;
 }

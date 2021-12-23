@@ -14,7 +14,7 @@ void TaskBlink( void *pvParameters );
 void setup(void) {
   Serial.begin(115200);
   gdl_90_init();
-//  imu_init();
+  imu_init();
 
   // blink task, for debugging.
   xTaskCreatePinnedToCore(
