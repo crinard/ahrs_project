@@ -161,14 +161,15 @@ void TaskSendAHRS(void *pvParameters) {
     0x7F, 0xFF, //Pitch
     0x7F, 0xFF, //Heading
     0x7F, 0xFF, //Knots Indicated Airspeed
-    0x7F, 0xFF, //Knots True Airspeed
+    0xFF, 0xFF, //Knots True Airspeed
     0, 0, 0x7E //CRC and end bit.
   };
 
   for(;;) {
     if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
-//      attitude_t attitude = get_attitude();
-      crc_inject(&ahrs_msg[0], sizeof(ahrs_msg));
+      attitude_t attitude = get_attitude();
+      update_ahrs_msg(&ahrs_msg[0], sizeof(ahrs_msg), attitude);
+      Serial.printf("msg[3] = %i, msg[4] = %i\n", ahrs_msg[3], ahrs_msg[4]);
       udp.beginPacket(m_foreflight_ip, TX_PORT);
       #pragma unroll(full)
       for(size_t i = 0; i < sizeof(ahrs_msg); i++) {
@@ -211,7 +212,6 @@ static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude
     ahrs_msg_buf[4] = attitude.roll & 0xFF;
     ahrs_msg_buf[5] = (attitude.pitch >> 8) & 0xFF;
     ahrs_msg_buf[6] = attitude.pitch & 0xFF;
-    Serial.printf("roll = %i, pitch = %i\n", attitude.roll, attitude.pitch);
-    crc_inject(ahrs_msg_buf, sizeof(buflen));
+    crc_inject(ahrs_msg_buf, buflen);
     return;
 }
