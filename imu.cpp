@@ -2,7 +2,9 @@
 #include <Arduino.h>
 #include <Adafruit_BNO08x.h>
 
-#define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define MS_TO_TICK(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define FAST_CORE 0
+#define SLOW_CORE 1
 #define BNO08X_RESET -1
 
 /****** Module Variables ******/
@@ -34,39 +36,41 @@ void imu_init(void) {
     ,  "Read from the sensor."
     ,  2048 // Stack size
     ,  NULL
-    ,  3 // Priority (0-3)
+    ,  2 // Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  SLOW_CORE);
 }
 
 void task_read_rpy(void * pvParameters) {
   for(;;) {
+    
     if (bno08x.wasReset()) {
       Serial.print("sensor was reset ");
       set_reports();
     }
 
-    if (bno08x.getSensorEvent(&sensorValue)) {
+    while (bno08x.getSensorEvent(&sensorValue)) {
+      //Process as many as the task scheduler allows for.
+      //TODO: This could be better implemented.
       switch (sensorValue.sensorId) {
-        case SH2_GYRO_INTEGRATED_RV:
-          quaternion_to_attitude(&sensorValue.un.gyroIntegratedRV, &m_ff_attitude);
-          break;
-        case SH2_GEOMAGNETIC_ROTATION_VECTOR:
-          Serial.print("Geo-Magnetic Rotation Vector - r: ");
-          Serial.print(sensorValue.un.geoMagRotationVector.real);
-          Serial.print(" i: ");
-          Serial.print(sensorValue.un.geoMagRotationVector.i);
-          Serial.print(" j: ");
-          Serial.print(sensorValue.un.geoMagRotationVector.j);
-          Serial.print(" k: ");
-          Serial.println(sensorValue.un.geoMagRotationVector.k);
-          break;
-        default:
-          break;
+          case SH2_GYRO_INTEGRATED_RV:
+            quaternion_to_attitude(&sensorValue.un.gyroIntegratedRV, &m_ff_attitude);
+            break;
+          case SH2_GEOMAGNETIC_ROTATION_VECTOR:
+            Serial.print("Geo-Magnetic Rotation Vector - r: ");
+            Serial.print(sensorValue.un.geoMagRotationVector.real);
+            Serial.print(" i: ");
+            Serial.print(sensorValue.un.geoMagRotationVector.i);
+            Serial.print(" j: ");
+            Serial.print(sensorValue.un.geoMagRotationVector.j);
+            Serial.print(" k: ");
+            Serial.println(sensorValue.un.geoMagRotationVector.k);
+            break;
+          default:
+            break;
       }
     }
-    
-    vTaskDelay(ms_to_tick(200));
+    vTaskDelay(MS_TO_TICK(100));
   }
 }
 
@@ -84,8 +88,8 @@ static inline void quaternion_to_attitude(sh2_GyroIntegratedRV_t* imu_data, ahrs
   float qi = imu_data->i;
   float qj = imu_data->j;
   float qk = imu_data->k;
-  float sqr = sq(qr);
-  float sqi = sq(qi);
+  float sqr = qr * qr;
+  float sqi = qi * qr;
   float sqj = sq(qj);
   float sqk = sq(qk);
   data->pitch = float_to_gdl90_range(

@@ -6,7 +6,9 @@
 #define LED_BUILTIN 13
 #endif
 
-#define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define MS_TO_TICK(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define FAST_CORE 0
+#define SLOW_CORE 1
 
 void TaskBlink( void *pvParameters );
 
@@ -22,9 +24,9 @@ void setup(void) {
     ,  "TaskBlink"   // A name just for humans
     ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  0  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  SLOW_CORE);
 }
 
 /*--------------------------------------------------*/
@@ -38,9 +40,9 @@ void TaskBlink(void *pvParameters)  // This is a task.
   for (;;) // A Task shall never return or exit. 
   {
     digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-    vTaskDelay(ms_to_tick(100)); // On for 1/10 of s
+    vTaskDelay(MS_TO_TICK(100)); // On for 1/10 of s
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-    vTaskDelay(ms_to_tick(900));  // Wait 9/10 s.
+    vTaskDelay(MS_TO_TICK(900));  // Wait 9/10 s.
   }
 }
 

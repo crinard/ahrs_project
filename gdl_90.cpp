@@ -5,8 +5,9 @@
 #include <WiFiUdp.h>
 #include "imu.h"
 
-#define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
-
+#define MS_TO_TICK(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define FAST_CORE 0
+#define SLOW_CORE 1
 
 /****** Defines ******/
 #define NET_NAME "backup_ahrs"
@@ -53,7 +54,7 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1 // Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  SLOW_CORE);
 
  xTaskCreatePinnedToCore(
    TaskSendAHRS
@@ -62,7 +63,7 @@ void gdl_90_init(void) {
    ,  NULL
    ,  3  //Priority (0-3)
    ,  NULL 
-   ,  ARDUINO_RUNNING_CORE);
+   ,  FAST_CORE);
 
   xTaskCreatePinnedToCore(
     TaskGetFFIP
@@ -71,7 +72,7 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1  //Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  FAST_CORE);
   xTaskCreatePinnedToCore(
     TaskSendID
     ,  "Send ID messages to Foreflight."
@@ -79,17 +80,7 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1  //Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
-//  xTaskCreatePinnedToCore(
-//    TaskSendAHRSReport
-//    ,  "Send AHRS report messages to Foreflight."
-//    ,  4096  // Stack size 
-//    ,  NULL
-//    ,  3  //Priority (0-3)
-//    ,  NULL 
-//    ,  ARDUINO_RUNNING_CORE);
-    
-  
+    ,  FAST_CORE);
 }
 
 static void crc_init(void) {
@@ -135,7 +126,7 @@ static void TaskGetFFIP (void *pvParameters ) {
       int len = udp.read(rx_buf, 255);
       Serial.println("Contents:");
     }
-    vTaskDelay(ms_to_tick(5000)); //Wait 5 seconds, max frequency of inbound messages.
+    vTaskDelay(MS_TO_TICK(5000)); //Wait 5 seconds, max frequency of inbound messages.
   }
 }
 
@@ -151,7 +142,7 @@ static void TaskSendHeartbeatMsg( void *pvParameters ) {
       }
       udp.endPacket();
     }
-    vTaskDelay(ms_to_tick(1000));
+    vTaskDelay(MS_TO_TICK(1000));
   }
 }
 
@@ -178,7 +169,7 @@ void TaskSendAHRS(void *pvParameters) {
       udp.endPacket();
       Serial.println("AHRS sent");
     }
-    vTaskDelay(ms_to_tick(200));
+    vTaskDelay(MS_TO_TICK(200));
   }
 }
 
@@ -202,7 +193,7 @@ static void TaskSendID( void *pvParameters) {
       }
       udp.endPacket();
     }
-    vTaskDelay(ms_to_tick(200));
+    vTaskDelay(MS_TO_TICK(200));
   }
 }
 
