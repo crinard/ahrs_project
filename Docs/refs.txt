@@ -1,2 +1,0 @@
-https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-get-prerequisites
-https://www.electronicshub.org/programming-esp8266-using-vs-code-and-platformio/#Installing_PlatformIO_IDE_Extension_on_VS_Code
