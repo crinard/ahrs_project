@@ -18,14 +18,16 @@ bool BNO085_IMU::begin(Stream *s) {
 
 
 bool BNO085_IMU::read(imu_data_t* imu_data) {
-    if (!imu_data) {
+  if (!imu_data) {
     return false;
   }
 
   if (!serial_dev->available()) {
     return false;
   }
+  
   if (serial_dev->peek() != 0xAA) {
+    //This is error-case handling. 
     serial_dev->read();
     return false;
   }
