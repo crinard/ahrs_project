@@ -1,33 +1,34 @@
 #include "imu.h"
-#include "bno085.h"
-#include "Arduino.h"
-#include <Wire.h>
+#include <Arduino.h>
+#include <Adafruit_BNO08x.h>
+
 #define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define BNO08X_RESET -1
 
 /****** Module Variables ******/
-static BNO085_IMU m_imu = BNO085_IMU();
-
-static imu_data_t m_attitude;
+static Adafruit_BNO08x  bno08x(BNO08X_RESET);
+static sh2_SensorValue_t sensorValue;
 static ahrs_data_t m_ff_attitude;
-
+static void set_reports(void);
+static inline void quaternion_to_attitude(sh2_GyroIntegratedRV_t* imu_data, ahrs_data_t* data);
 /****** Function Prototypes ******/
 
 /**
  * @brief Takes a float from the sensor and converts it into the range -1800, 1800.
  **/
-int16_t float_to_gdl90_range(float x);
+static inline int16_t float_to_gdl90_range(float x);
 ahrs_data_t get_attitude(void);
 /****** Tasks ******/
 void task_read_rpy(void * pvParameters);
 
 void imu_init(void) {
-  Serial1.begin(115200); // This is the baud rate specified by the datasheet for the IMU chip.
-  while (!Serial1) delay(20);
-  while (!m_imu.begin(&Serial1)) { // connect to the sensor over hardware serial
-    Serial.println("Could not find BNO08x!");
-    delay(10);
+  while (!bno08x.begin_UART(&Serial1)) {
+    Serial.println("BNO085 not found\n");
+    delay(500);
   }
-  Serial.println("BNO08x found!");
+
+  set_reports();
+
   xTaskCreatePinnedToCore(
     task_read_rpy
     ,  "Read from the sensor."
@@ -39,27 +40,69 @@ void imu_init(void) {
 }
 
 void task_read_rpy(void * pvParameters) {
-    // The example script was polling TODO: Setup interrupts.
-    for(;;) {
-      while (m_imu.read(&m_attitude)) {
-        // We have the most recent buffer, save into our struct and delay. 
-        // TODO: make this atomic.
-        m_ff_attitude.roll = float_to_gdl90_range(m_attitude.pitch);
-        m_ff_attitude.pitch = float_to_gdl90_range(m_attitude.roll);
-      }
-      vTaskDelay(ms_to_tick(50));
+  for(;;) {
+    if (bno08x.wasReset()) {
+      Serial.print("sensor was reset ");
+      set_reports();
     }
+
+    if (bno08x.getSensorEvent(&sensorValue)) {
+      switch (sensorValue.sensorId) {
+        case SH2_GYRO_INTEGRATED_RV:
+          quaternion_to_attitude(&sensorValue.un.gyroIntegratedRV, &m_ff_attitude);
+          break;
+        case SH2_GEOMAGNETIC_ROTATION_VECTOR:
+          Serial.print("Geo-Magnetic Rotation Vector - r: ");
+          Serial.print(sensorValue.un.geoMagRotationVector.real);
+          Serial.print(" i: ");
+          Serial.print(sensorValue.un.geoMagRotationVector.i);
+          Serial.print(" j: ");
+          Serial.print(sensorValue.un.geoMagRotationVector.j);
+          Serial.print(" k: ");
+          Serial.println(sensorValue.un.geoMagRotationVector.k);
+          break;
+        default:
+          break;
+      }
+    }
+    
+    vTaskDelay(ms_to_tick(200));
+  }
+}
+
+static void set_reports(void) {
+  if (!bno08x.enableReport(SH2_GYRO_INTEGRATED_RV, 200)) {
+    Serial.println("Could not enable gyro");
+  }
+  if (!bno08x.enableReport(SH2_GEOMAGNETIC_ROTATION_VECTOR)) {
+    Serial.println("Could not enable geomag");
+  } 
+}
+
+static inline void quaternion_to_attitude(sh2_GyroIntegratedRV_t* imu_data, ahrs_data_t* data) {
+  float qr = imu_data->real;
+  float qi = imu_data->i;
+  float qj = imu_data->j;
+  float qk = imu_data->k;
+  float sqr = sq(qr);
+  float sqi = sq(qi);
+  float sqj = sq(qj);
+  float sqk = sq(qk);
+  data->pitch = float_to_gdl90_range(
+    asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr)) * RAD_TO_DEG);
+  data->roll = float_to_gdl90_range(
+    atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr)) * RAD_TO_DEG);
 }
 
 /**
  * @brief Takes a float from the sensor and converts it into the range -1800, 1800.
  **/
-int16_t float_to_gdl90_range(float x) {
-    double dbl = (double) x;
-    dbl = dbl * (1800 / 180);
-    return (int16_t) dbl;
+static inline int16_t float_to_gdl90_range(float x) {
+  double dbl = (double) x;
+  dbl = dbl * (1800 / 180);
+  return (int16_t) dbl;
 }
 
 ahrs_data_t get_attitude(void) {
-    return m_ff_attitude;
+  return m_ff_attitude;
 }
