@@ -1,11 +1,14 @@
 #include "imu.h"
-#include "Adafruit_BNO08x_RVC.h"
+#include "bno085.h"
+#include "Arduino.h"
+#include <Wire.h>
 #define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
 
 /****** Module Variables ******/
-Adafruit_BNO08x_RVC rvc = Adafruit_BNO08x_RVC();
-static BNO08x_RVC_Data m_attitude;
-static attitude_t m_ff_attitude;
+static BNO085_IMU m_imu = BNO085_IMU();
+
+static imu_data_t m_attitude;
+static ahrs_data_t m_ff_attitude;
 
 /****** Function Prototypes ******/
 
@@ -13,14 +16,14 @@ static attitude_t m_ff_attitude;
  * @brief Takes a float from the sensor and converts it into the range -1800, 1800.
  **/
 int16_t float_to_gdl90_range(float x);
-attitude_t get_attitude(void);
+ahrs_data_t get_attitude(void);
 /****** Tasks ******/
 void task_read_rpy(void * pvParameters);
 
 void imu_init(void) {
   Serial1.begin(115200); // This is the baud rate specified by the datasheet for the IMU chip.
   while (!Serial1) delay(20);
-  while (!rvc.begin(&Serial1)) { // connect to the sensor over hardware serial
+  while (!m_imu.begin(&Serial1)) { // connect to the sensor over hardware serial
     Serial.println("Could not find BNO08x!");
     delay(10);
   }
@@ -38,7 +41,7 @@ void imu_init(void) {
 void task_read_rpy(void * pvParameters) {
     // The example script was polling TODO: Setup interrupts.
     for(;;) {
-      while (rvc.read(&m_attitude)) {
+      while (m_imu.read(&m_attitude)) {
         // We have the most recent buffer, save into our struct and delay. 
         // TODO: make this atomic.
         m_ff_attitude.roll = float_to_gdl90_range(m_attitude.pitch);
@@ -57,6 +60,6 @@ int16_t float_to_gdl90_range(float x) {
     return (int16_t) dbl;
 }
 
-attitude_t get_attitude(void) {
+ahrs_data_t get_attitude(void) {
     return m_ff_attitude;
 }

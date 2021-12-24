@@ -36,7 +36,7 @@ static void crc_init(void);
  * @note See "GDL 90 Data Interface Specification, 560-1058-00, section 2.2" for details.
  **/
 static void crc_inject(unsigned char *msg, uint32_t length);
-static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude_t attitude);
+static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, ahrs_data_t attitude);
 /**
  * @brief Initializes all components needed for GDL90 w/ foreflight.
  **/
@@ -167,7 +167,7 @@ void TaskSendAHRS(void *pvParameters) {
 
   for(;;) {
     if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
-      attitude_t attitude = get_attitude();
+      ahrs_data_t attitude = get_attitude();
       update_ahrs_msg(&ahrs_msg[0], sizeof(ahrs_msg), attitude);
       Serial.printf("msg[3] = %i, msg[4] = %i\n", ahrs_msg[3], ahrs_msg[4]);
       udp.beginPacket(m_foreflight_ip, TX_PORT);
@@ -206,7 +206,7 @@ static void TaskSendID( void *pvParameters) {
   }
 }
 
-static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude_t attitude) {
+static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, ahrs_data_t attitude) {
     //Foreflight website says big-endian, so I'm going to need to mask the raw ints. 
     ahrs_msg_buf[3] = (attitude.roll >> 8) & 0xFF;
     ahrs_msg_buf[4] = attitude.roll & 0xFF;
