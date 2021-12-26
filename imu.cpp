@@ -13,6 +13,7 @@ static sh2_SensorValue_t sensorValue;
 static ahrs_data_t m_ff_attitude;
 static void set_reports(void);
 static inline void quaternion_to_attitude(sh2_GyroIntegratedRV_t* imu_data, ahrs_data_t* data);
+static inline void sensor_to_mag_heading(sh2_MagneticField_t* imu_data, ahrs_data_t* data);
 /****** Function Prototypes ******/
 
 /**
@@ -56,15 +57,8 @@ void task_read_rpy(void * pvParameters) {
           case SH2_GYRO_INTEGRATED_RV:
             quaternion_to_attitude(&sensorValue.un.gyroIntegratedRV, &m_ff_attitude);
             break;
-          case SH2_GEOMAGNETIC_ROTATION_VECTOR:
-            Serial.print("Geo-Magnetic Rotation Vector - r: ");
-            Serial.print(sensorValue.un.geoMagRotationVector.real);
-            Serial.print(" i: ");
-            Serial.print(sensorValue.un.geoMagRotationVector.i);
-            Serial.print(" j: ");
-            Serial.print(sensorValue.un.geoMagRotationVector.j);
-            Serial.print(" k: ");
-            Serial.println(sensorValue.un.geoMagRotationVector.k);
+          case SH2_MAGNETIC_FIELD_CALIBRATED:
+            sensor_to_mag_heading(&sensorValue.un.magneticField, &m_ff_attitude);
             break;
           default:
             break;
@@ -78,7 +72,7 @@ static void set_reports(void) {
   if (!bno08x.enableReport(SH2_GYRO_INTEGRATED_RV, 200)) {
     Serial.println("Could not enable gyro");
   }
-  if (!bno08x.enableReport(SH2_GEOMAGNETIC_ROTATION_VECTOR)) {
+  if (!bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED)) {
     Serial.println("Could not enable geomag");
   } 
 }
@@ -92,10 +86,18 @@ static inline void quaternion_to_attitude(sh2_GyroIntegratedRV_t* imu_data, ahrs
   float sqi = qi * qr;
   float sqj = sq(qj);
   float sqk = sq(qk);
+  //TODO: these should be dealt with atomically.
   data->pitch = float_to_gdl90_range(
-    asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr)) * RAD_TO_DEG);
+    - asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr)) * RAD_TO_DEG);
   data->roll = float_to_gdl90_range(
     atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr)) * RAD_TO_DEG);
+}
+
+static inline void sensor_to_mag_heading(sh2_MagneticField_t* imu_data, ahrs_data_t* data) {
+  data->heading = (sensorValue.un.magneticField.y > 0) ? 
+                 float_to_gdl90_range(90 - atan(sensorValue.un.magneticField.x/sensorValue.un.magneticField.y) * RAD_TO_DEG) : 
+                 float_to_gdl90_range(270 - atan(sensorValue.un.magneticField.x/sensorValue.un.magneticField.y) * RAD_TO_DEG);
+  //TODO: Handle other two (edge) cases in Honeywell AN203 Compass Heading Using Magnetometers 
 }
 
 /**
