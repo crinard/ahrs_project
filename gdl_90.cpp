@@ -143,16 +143,23 @@ static void crc_inject(unsigned char *msg, size_t len) {
 static void TaskGetFFIP(void *pvParameters) {
   // Variable setup.
   static char rx_buf[255]; //buffer to hold incoming packet
+  static const char expected_msg[] = "{\"App\":\"ForeFlight\",\"GDL90\":{\"port\":4000}}";
   for (;;) {
     for(size_t i = 0; i < MAX_CONNECTED_IP; i++) { //Process all of the incoming messages.
       int packetSize = udp.parsePacket();
       if (packetSize) {
-        Serial.print("New transmission from:");
-        Serial.print(udp.remoteIP());
-        // read the packet into packetBufffer.
-        int len = (packetSize < 255) ? udp.read(rx_buf, packetSize) : udp.read(rx_buf, 255);
-        //TODO: Check for the correct JSON structure.
-        Serial.println(rx_buf);
+        udp.read(rx_buf, sizeof(expected_msg));
+        bool matches = true;
+        #pragma unroll(full)
+        for (size_t j = 0; j < sizeof(expected_msg); j++) {
+          matches = !((rx_buf[j] != expected_msg[j]) || !matches) ? true : false;
+        }
+        #ifdef DEBUG
+          Serial.print("New transmission from:");
+          Serial.println(udp.remoteIP());
+          Serial.println(rx_buf);
+          Serial.printf("Buffers match %i\n", matches);
+        #endif
         m_ips[i] = udp.remoteIP(); //Add the ip to the list
         m_connected_nodes = i + 1; //Keep updating this, +1 to capture length, not indexing.
       } else {
@@ -200,7 +207,9 @@ void TaskSendAHRS(void *pvParameters) {
       }
       udp.endPacket();
     }
-    Serial.println("AHRS sent");
+    #ifdef DEBUG
+      Serial.println("AHRS sent");
+    #endif
     vTaskDelay(MS_TO_TICK(200));
   }
 }
