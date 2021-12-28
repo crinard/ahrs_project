@@ -24,7 +24,7 @@ void setup(void) {
     ,  NULL
     ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  0);
 }
 
 /*--------------------------------------------------*/

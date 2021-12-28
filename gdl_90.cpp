@@ -4,19 +4,37 @@
 #include <WiFiAP.h>
 #include <WiFiUdp.h>
 #include "imu.h"
-#include "messages.h"
 
 #define MS_TO_TICK(x) x/portTICK_PERIOD_MS //Arduino default ticks.
 #define FAST_CORE 0
 #define SLOW_CORE 1
 #define DEBUG 1
 /****** Defines ******/
-//#define SHORT_NAME 
+// Network stuff
 #define NET_NAME "backup_ahrs"
 #define NET_PASS "password"
 #define RX_PORT 63093
 #define TX_PORT 4000
 #define MAX_CONNECTED_IP 5
+#define FLAG_BYTE 0x7E
+
+// Message IDs
+#define HEARTBEAT_MSG_ID 0
+#define OWNSHIP_MSG_ID 10
+#define TRAFFIC_MSG_ID 20
+#define OWNSHIP_GEO_ALT_MSG_ID 11
+#define UAT_UPLINK_MSG_ID 7
+#define FF_AHRS_MSG_ID 0x65
+#define FF_ID_MSG_ID 0x65
+
+//Message lengths.
+#define HEARTBEAT_MSG_LEN 11U
+#define OWNSHIP_MSG_LEN 32U
+#define TRAFFIC_MSG_LEN 32U
+#define OWNSHIP_GEO_ALT_MSG_LEN 9U
+#define UAT_UPLINK_MSG_LEN 440U
+#define FF_AHRS_MSG_LEN 16U
+#define FF_ID_MSG_LEN 43U
 
 /****** Module Variables ******/
 static uint16_t Crc16Table[256] = {0};
@@ -153,15 +171,29 @@ static void TaskGetFFIP(void *pvParameters) {
 }
 
 static void TaskSend1hzMsgs(void *pvParameters) {
-  const uint8_t short_name[8] = {'A', 'H', 'R', 'S', 0, 0, 0 , 0};
-  const uint8_t long_name[16] = {'B', 'a', 'c', 'k', 'u', 'p', ' ', 'A', 'H', 'R', 'S', 0, 0, 0, 0, 0}; 
-  ff_id_msg id(short_name, long_name, 0);
-  heartbeat_msg heartbeat; 
+  static uint8_t heartbeat_msg[HEARTBEAT_MSG_LEN] = 
+                                        {FLAG_BYTE, HEARTBEAT_MSG_ID,// Message header
+                                         0xFF, 0x00, // Status bytes 1 & 2
+                                         0x00, 0x00, // Timestamp
+                                         0, 0, // Message counts
+                                         0, 0, FLAG_BYTE //CRC and flag byte.
+                                        };
+  static uint8_t id_msg[FF_ID_MSG_LEN] = 
+                                        {FLAG_BYTE, FF_ID_MSG_ID, 0, 1, //Message header
+                                        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //Serial number
+                                        'A', 'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, //Device Name
+                                        'B', 'a', 'c', 'k', 'u', 'p', ' ', 'A', //Device long name (16B)
+                                        'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, 0x00,
+                                        0x00, 0x00, 0x00, 0x01, //Capabilities mask
+                                        0x00, 0x00, FLAG_BYTE //CRC and Flag byte
+                                        };
+  crc_inject(id_msg, FF_ID_MSG_LEN);
+  crc_inject(heartbeat_msg, HEARTBEAT_MSG_LEN);
   for (;;) {
-    for (size_t i = 0; m_connected_nodes; i++) {
+    for (size_t i = 0; i < m_connected_nodes; i++) {
       udp.beginPacket(m_ips[i], TX_PORT);
-      udp.write(id.buf, id.buflen);
-      udp.write(heartbeat.buf, heartbeat.buflen);
+      udp.write(&id_msg[0], FF_ID_MSG_LEN);
+      udp.write(&heartbeat_msg[0], HEARTBEAT_MSG_LEN);
       udp.endPacket();
     }
     vTaskDelay(MS_TO_TICK(1000));
@@ -169,14 +201,14 @@ static void TaskSend1hzMsgs(void *pvParameters) {
 }
 
 void TaskSendAHRS(void *pvParameters) {
-  static uint8_t ahrs_msg[] = {0x7E, 0x65, 0x01, //Message header
-                               0x7F, 0xFF, //Roll
-                               0x7F, 0xFF, //Pitch
-                               0x7F, 0xFF, //Heading
-                               0x7F, 0xFF, //Knots Indicated Airspeed
-                               0xFF, 0xFF, //Knots True Airspeed
-                               0, 0, 0x7E //CRC and end bit.
-                              };
+  static uint8_t ahrs_msg[FF_AHRS_MSG_LEN] = {FLAG_BYTE, FF_AHRS_MSG_ID, 0x01, //Message header
+                                              0x7F, 0xFF, //Roll
+                                              0x7F, 0xFF, //Pitch
+                                              0x7F, 0xFF, //Heading
+                                              0x7F, 0xFF, //Knots Indicated Airspeed
+                                              0xFF, 0xFF, //Knots True Airspeed
+                                              0, 0, FLAG_BYTE //CRC and end bit.
+                                              };
   for (;;) {
     for (size_t i = 0; i < m_connected_nodes; i++) {
       crc_inject(&ahrs_msg[0], sizeof(ahrs_msg));
