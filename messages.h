@@ -18,25 +18,25 @@ typedef enum altitude_type_e {
     MSL = 1,
 } altitude_type_e;
 
-class heartbeat_msg {
-    public:
-        heartbeat_msg(void);
-        ~heartbeat_msg(void);
-        bool send(WiFiUDP buf);
-    private:
-        uint8_t* msg_buf;
-        size_t buflen;
-};
-
-class ff_id_msg {
-    public:
-        ff_id_msg(uint8_t short_name[8], uint8_t long_name[16], uint64_t serial_number);
-        ~ff_id_msg(void);
-        bool send(WiFiUDP buf);
-    private:
-        uint8_t* msg_buf;
-        size_t buflen;
-};
+//class heartbeat_msg {
+//    public:
+//        heartbeat_msg(void);
+//        ~heartbeat_msg(void);
+//        bool send(WiFiUDP buf);
+//    private:
+//        uint8_t* msg_buf;
+//        size_t buflen;
+//};
+//
+//class ff_id_msg {
+//    public:
+//        ff_id_msg(uint8_t short_name[8], uint8_t long_name[16], uint64_t serial_number);
+//        ~ff_id_msg(void);
+//        bool send(WiFiUDP buf);
+//    private:
+//        uint8_t* msg_buf;
+//        size_t buflen;
+//};
 
 // class traffic_msg: public gdl_90_msg {
 //     public:
@@ -69,11 +69,11 @@ class ff_id_msg {
 class ff_ahrs_msg {
     public:
         ff_ahrs_msg(void);
+        ~ff_ahrs_msg(void);
         void update_roll_pitch(float roll, float pitch);
         void update_heading(float hdg);
         bool send(WiFiUDP buf);
     private:
-        uint8_t* msg_buf;
         size_t buflen; 
         float roll_deg, pitch_deg, heading_deg;
         uint16_t roll, pitch, yaw;
