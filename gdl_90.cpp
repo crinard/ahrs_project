@@ -49,7 +49,7 @@ static void TaskGetFFIP (void *pvParameters );
 /**
    @brief Sends Heartbeat, ID, and Ownship messages at 1Hz to all connected devices.
 */
-static void TaskSend1hzMsgs(void *pvParameters);
+//static void TaskSend1hzMsgs(void *pvParameters);
 
 /**
    @brief Sends Foreflight AHRS message at 5Hz to all connected devices.
@@ -65,14 +65,14 @@ void gdl_90_init(void) {
   udp.begin(RX_PORT);
   crc_init();
 
-  xTaskCreatePinnedToCore(
-    TaskSend1hzMsgs
-    ,  "Send 1Hz messages to Foreflight."
-    ,  4096 // Stack size
-    ,  NULL
-    ,  1 // Priority (0-3)
-    ,  NULL
-    ,  FAST_CORE);
+  // xTaskCreatePinnedToCore(
+  //   TaskSend1hzMsgs
+  //   ,  "Send 1Hz messages to Foreflight."
+  //   ,  4096 // Stack size
+  //   ,  NULL
+  //   ,  1 // Priority (0-3)
+  //   ,  NULL
+  //   ,  FAST_CORE);
 
   xTaskCreatePinnedToCore(
     TaskSendAHRS
@@ -150,47 +150,18 @@ static void TaskGetFFIP(void *pvParameters) {
   }
 }
 
-static void TaskSend1hzMsgs(void *pvParameters) {
-//  static uint8_t heartbeat_msg[] = {0x7E, 10, 0xFF, 0, 0, 0, 0, 0, 0x7E};
-//  static uint8_t id_msg[] =        {0x7E, 0x65, 0, 1, //Message header
-//                                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //Serial number
-//                                    0x61, 0x68, 0x72, 0x73, 0x00, 0x00, 0x00, 0x00, //Device Name
-//                                    0x61, 0x68, 0x72, 0x73, 0x00, 0x00, 0x00, 0x00, //Device long name (16B)
-//                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//                                    0x00, 0x00, 0x00, 0x01, //Capabilities mask
-//                                    0x00, 0x00, 0x7E //CRC and Flag byte
-//                                   };
-//  static uint8_t ownship_msg[] =   {0x7E, 10, //Message header
-//                                    0x01, // Traffic Alert Status and Address Type
-//                                    0x00, 0x00, 0x00, // Participant Address
-//                                    0x00, 0x20, 0x00, // Latitude: 24-bit signed binary fraction. Resolution = 180 / 223 degrees
-//                                    0x40, 0x00, 0x00, // Longitude: 24-bit signed binary fraction. Resolution = 180 / 223 degrees.
-//                                    0x00, 0xF2, 0x88, // Altitude: 12-bit offset integer. Resolution = 25 feet. Altitude (ft) = ("ddd" * 25) - 1,000, and Miscellaneous indicators: Navigation Integrity Category
-//                                    0x00, // Navigation Integrity Category (NIC), Navigation Accuracy Category for Position (NACp)
-//                                    0x10, 0x01, 0x02, //Horizontal velocity. Resolution = 1 kt, Vertical Velocity: Signed integer in units of 64 fpm.
-//                                    0x01, // Track/Heading: 8-bit angular weighted binary. Resolution = 360/256 degrees. 0 = North, 128 = South. See Miscellaneous field for Track/Heading indication.
-//                                    0x4E, 0x38, 0x32, 0x35, 0x56, 0x20, 0x20, 0x20, // Callsign
-//                                    0x00, // Emergency/Priority code, space.
-//                                    0, 0, 0x7E //CRC and Flag byte.
-//                                   };
-//  for (;;) {
-//    crc_inject(&heartbeat_msg[0], sizeof(heartbeat_msg));
-//    for (size_t i = 0; i < m_connected_nodes; i++) {
-//      udp.beginPacket(m_ips[i], TX_PORT);
-//      #pragma unroll(full)
-//      for (size_t j = 0; j < sizeof(heartbeat_msg); j++) {
-//        udp.write(heartbeat_msg[j]);
-//      }
-//      udp.endPacket();
-//    }
-    vTaskDelay(MS_TO_TICK(1000));
-//  }
-}
-
 void TaskSendAHRS(void *pvParameters) {
   ff_ahrs_msg msg;
   for (;;) {
-    msg.send(udp);    
+    for (size_t i = 0; m_connected_nodes; i++) {
+      udp.beginPacket(m_ips[i], TX_PORT);
+      udp.write(msg.buf, msg.buflen);
+      udp.endPacket();
+    }
     vTaskDelay(MS_TO_TICK(200));
   }
 }
+
+//static void TaskSend1hzMsgs(void *pvParameters) {
+//  
+//}
