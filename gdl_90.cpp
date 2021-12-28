@@ -9,8 +9,9 @@
 #define MS_TO_TICK(x) x/portTICK_PERIOD_MS //Arduino default ticks.
 #define FAST_CORE 0
 #define SLOW_CORE 1
-
+#define DEBUG 1
 /****** Defines ******/
+//#define SHORT_NAME 
 #define NET_NAME "backup_ahrs"
 #define NET_PASS "password"
 #define RX_PORT 63093
@@ -49,7 +50,7 @@ static void TaskGetFFIP (void *pvParameters );
 /**
    @brief Sends Heartbeat, ID, and Ownship messages at 1Hz to all connected devices.
 */
-//static void TaskSend1hzMsgs(void *pvParameters);
+static void TaskSend1hzMsgs(void *pvParameters);
 
 /**
    @brief Sends Foreflight AHRS message at 5Hz to all connected devices.
@@ -65,19 +66,19 @@ void gdl_90_init(void) {
   udp.begin(RX_PORT);
   crc_init();
 
-  // xTaskCreatePinnedToCore(
-  //   TaskSend1hzMsgs
-  //   ,  "Send 1Hz messages to Foreflight."
-  //   ,  4096 // Stack size
-  //   ,  NULL
-  //   ,  1 // Priority (0-3)
-  //   ,  NULL
-  //   ,  FAST_CORE);
+  xTaskCreatePinnedToCore(
+    TaskSend1hzMsgs
+    ,  "1Hz msg"
+    ,  4096 // Stack size
+    ,  NULL
+    ,  1 // Priority (0-3)
+    ,  NULL
+    ,  FAST_CORE);
 
   xTaskCreatePinnedToCore(
     TaskSendAHRS
-    ,  "Send AHRS messages to Foreflight."
-    ,  4096  // Stack size
+    ,  "AHRS msg"
+    ,  2048  // Stack size
     ,  NULL
     ,  2  //Priority (0-3)
     ,  NULL
@@ -85,7 +86,7 @@ void gdl_90_init(void) {
 
   xTaskCreatePinnedToCore(
     TaskGetFFIP
-    ,  "Listen for Foreflight JSON messages."
+    ,  "FF_RX"
     ,  4096  // Stack size
     ,  NULL
     ,  0  //Priority (0-3)
@@ -125,6 +126,7 @@ static void TaskGetFFIP(void *pvParameters) {
   static char rx_buf[255]; //buffer to hold incoming packet
   static const char expected_msg[] = "{\"App\":\"ForeFlight\",\"GDL90\":{\"port\":4000}}";
   for (;;) {
+    m_connected_nodes = 0;
     for(size_t i = 0; i < MAX_CONNECTED_IP; i++) { //Process all of the incoming messages.
       int packetSize = udp.parsePacket();
       if (packetSize) {
@@ -150,18 +152,40 @@ static void TaskGetFFIP(void *pvParameters) {
   }
 }
 
-void TaskSendAHRS(void *pvParameters) {
-  ff_ahrs_msg msg;
+static void TaskSend1hzMsgs(void *pvParameters) {
+  const uint8_t short_name[8] = {'A', 'H', 'R', 'S', 0, 0, 0 , 0};
+  const uint8_t long_name[16] = {'B', 'a', 'c', 'k', 'u', 'p', ' ', 'A', 'H', 'R', 'S', 0, 0, 0, 0, 0}; 
+  ff_id_msg id(short_name, long_name, 0);
+  heartbeat_msg heartbeat; 
   for (;;) {
     for (size_t i = 0; m_connected_nodes; i++) {
       udp.beginPacket(m_ips[i], TX_PORT);
-      udp.write(msg.buf, msg.buflen);
+      udp.write(id.buf, id.buflen);
+      udp.write(heartbeat.buf, heartbeat.buflen);
+      udp.endPacket();
+    }
+    vTaskDelay(MS_TO_TICK(1000));
+  }
+}
+
+void TaskSendAHRS(void *pvParameters) {
+  static uint8_t ahrs_msg[] = {0x7E, 0x65, 0x01, //Message header
+                               0x7F, 0xFF, //Roll
+                               0x7F, 0xFF, //Pitch
+                               0x7F, 0xFF, //Heading
+                               0x7F, 0xFF, //Knots Indicated Airspeed
+                               0xFF, 0xFF, //Knots True Airspeed
+                               0, 0, 0x7E //CRC and end bit.
+                              };
+  for (;;) {
+    for (size_t i = 0; i < m_connected_nodes; i++) {
+      crc_inject(&ahrs_msg[0], sizeof(ahrs_msg));
+      udp.beginPacket(m_ips[i], TX_PORT);
+      for(size_t i = 0; i < sizeof(ahrs_msg); i++) {
+         udp.write(ahrs_msg[i]);
+      }
       udp.endPacket();
     }
     vTaskDelay(MS_TO_TICK(200));
   }
 }
-
-//static void TaskSend1hzMsgs(void *pvParameters) {
-//  
-//}

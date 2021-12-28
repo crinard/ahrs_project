@@ -18,12 +18,20 @@ typedef enum altitude_type_e {
     MSL = 1,
 } altitude_type_e;
 
-class ff_ahrs_msg {
+class heartbeat_msg {
     public:
-        ff_ahrs_msg(void);
-        ~ff_ahrs_msg(void);
+        heartbeat_msg(void);
+        ~heartbeat_msg(void);
+        uint8_t* buf;
         size_t buflen;
-        uint8_t * buf;
+};
+
+class ff_id_msg {
+    public:
+        ff_id_msg(const uint8_t short_name[8], const uint8_t long_name[16], uint64_t serial_number);
+        ~ff_id_msg(void);
+        uint8_t* buf;
+        size_t buflen;
 };
 
 #endif //MESSAGES_H

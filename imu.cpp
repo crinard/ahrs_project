@@ -1,6 +1,8 @@
 #include "imu.h"
 #include "Adafruit_BNO08x_RVC.h"
 #define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#define FAST_CORE 0
+#define SLOW_CORE 1
 
 /****** Module Variables ******/
 Adafruit_BNO08x_RVC rvc = Adafruit_BNO08x_RVC();
@@ -32,13 +34,13 @@ void imu_init(void) {
     ,  NULL
     ,  3 // Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  SLOW_CORE);
 }
 
 void task_read_rpy(void * pvParameters) {
     // The example script was polling TODO: Setup interrupts.
     for(;;) {
-      while (rvc.read(&m_attitude)) {
+      while(rvc.read(&m_attitude)) {
         // We have the most recent buffer, save into our struct and delay. 
         // TODO: make this atomic.
         m_ff_attitude.roll = float_to_gdl90_range(m_attitude.pitch);
@@ -53,7 +55,7 @@ void task_read_rpy(void * pvParameters) {
  **/
 int16_t float_to_gdl90_range(float x) {
     double dbl = (double) x;
-    dbl = dbl * (1800 / 180);
+    dbl = dbl * 10;
     return (int16_t) dbl;
 }
 
