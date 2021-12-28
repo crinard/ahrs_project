@@ -16,6 +16,7 @@
 #define RX_PORT 63093
 #define TX_PORT 4000
 #define MAX_CONNECTED_IP 5
+#define CRC_DEFAULT 0x00
 #define FLAG_BYTE 0x7E
 
 // Message IDs
@@ -180,20 +181,46 @@ static void TaskSend1hzMsgs(void *pvParameters) {
                                         };
   static uint8_t id_msg[FF_ID_MSG_LEN] = 
                                         {FLAG_BYTE, FF_ID_MSG_ID, 0, 1, //Message header
-                                        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //Serial number
-                                        'A', 'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, //Device Name
-                                        'B', 'a', 'c', 'k', 'u', 'p', ' ', 'A', //Device long name (16B)
-                                        'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, 0x00,
-                                        0x00, 0x00, 0x00, 0x01, //Capabilities mask
-                                        0x00, 0x00, FLAG_BYTE //CRC and Flag byte
+                                         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, //Serial number
+                                         'A', 'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, //Device Name
+                                         'B', 'a', 'c', 'k', 'u', 'p', ' ', 'A', //Device long name (16B)
+                                         'H', 'R', 'S', 0x00, 0x00, 0x00, 0x00, 0x00,
+                                         0x00, 0x00, 0x00, 0x01, //Capabilities mask
+                                         CRC_DEFAULT, CRC_DEFAULT, FLAG_BYTE //CRC and Flag byte
                                         };
+  static uint8_t ownship_msg[OWNSHIP_MSG_LEN] = 
+                                        {FLAG_BYTE, OWNSHIP_MSG_ID, 
+                                         0x00, //Traffic alert and type of address
+                                         0x00, 0x00, 0x00, //Participant address
+                                         0x00, 0x00, 0x00, // Latitide (180/ 2^23 degrees resolution, signed)
+                                         0x00, 0x00, 0x00, // Longitude (180/ 2^23 degrees resolution, signed)
+                                         0x00, 0x00, // Altitude, in 25 ft resolution, and misc indicators.
+                                         0x00, // NIC and NACp
+                                         0x00, 0x00, 0x00, // Horizontal and Vertical velocity
+                                         0x00, //Track | Heading.
+                                         0x00, //Emitter catagory
+                                         'm', 'y', 'c', 'a', //Callsign (8 bytes)
+                                         'l', 's', 'g', 'n',
+                                         0x00, //Emergency code and spare.
+                                         CRC_DEFAULT, CRC_DEFAULT, FLAG_BYTE
+                                         };
+
+  // static uint8_t ownship_geo_alt_msg[OWNSHIP_GEO_ALT_MSG_LEN] = 
+  //                                       {FLAG_BYTE, OWNSHIP_GEO_ALT_MSG_ID,
+                                         
+  //                                        CRC_DEFAULT, CRC_DEFAULT, FLAG_BYTE
+  //                                       };
   crc_inject(id_msg, FF_ID_MSG_LEN);
   crc_inject(heartbeat_msg, HEARTBEAT_MSG_LEN);
+  
   for (;;) {
+    crc_inject(ownship_msg, OWNSHIP_MSG_LEN);
+    // crc_inject(ownship_geo_alt_msg, OWNSHIP_GEO_ALT_MSG_LEN);
     for (size_t i = 0; i < m_connected_nodes; i++) {
       udp.beginPacket(m_ips[i], TX_PORT);
       udp.write(&id_msg[0], FF_ID_MSG_LEN);
       udp.write(&heartbeat_msg[0], HEARTBEAT_MSG_LEN);
+      udp.write(&ownship_msg[0], OWNSHIP_MSG_LEN);
       udp.endPacket();
     }
     vTaskDelay(MS_TO_TICK(1000));
@@ -207,7 +234,7 @@ void TaskSendAHRS(void *pvParameters) {
                                               0x7F, 0xFF, //Heading
                                               0x7F, 0xFF, //Knots Indicated Airspeed
                                               0xFF, 0xFF, //Knots True Airspeed
-                                              0, 0, FLAG_BYTE //CRC and end bit.
+                                              CRC_DEFAULT, CRC_DEFAULT, FLAG_BYTE //CRC and end bit.
                                               };
   for (;;) {
     for (size_t i = 0; i < m_connected_nodes; i++) {
