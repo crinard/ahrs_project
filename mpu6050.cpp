@@ -27,93 +27,99 @@ static void RegisterWrite(byte registerAddress, byte data);
 static TwoWire *wire;
 
 void init_mpu(void) {
-  wire = &Wire;
+    wire = &Wire;
 
-  // Initialization
-  wire->begin();
-	// Setting sample rate divider
-	RegisterWrite(MPU6050_SMPLRT_DIV, 0x00);
+    // Initialization
+    wire->begin();
+    // Setting sample rate divider
+    RegisterWrite(MPU6050_SMPLRT_DIV, 0x00);
 
-	// Setting frame synchronization and the digital low-pass filter
-	RegisterWrite(MPU6050_CONFIG, 0x00);
+    // Setting frame synchronization and the digital low-pass filter
+    RegisterWrite(MPU6050_CONFIG, 0x00);
 
-	// Setting gyro self-test and full scale range
-	RegisterWrite(MPU6050_GYRO_CONFIG, 0x08);
+    // Setting gyro self-test and full scale range
+    RegisterWrite(MPU6050_GYRO_CONFIG, 0x08);
 
-	// Setting accelerometer self-test and full scale range
-	RegisterWrite(MPU6050_ACCEL_CONFIG, 0x00);
+    // Setting accelerometer self-test and full scale range
+    RegisterWrite(MPU6050_ACCEL_CONFIG, 0x00);
 
-	// Waking up MPU6050
-	RegisterWrite(MPU6050_PWR_MGMT_1, 0x01);
+    // Waking up MPU6050
+    RegisterWrite(MPU6050_PWR_MGMT_1, 0x01);
 
-	// Setting angles to zero
-  roll = 0;
-  pitch = 0;
+    // Setting angles to zero
+    roll = 0;
+    pitch = 0;
 
-  // Get the initial value TODO: Maybe to a 5s average here?
-  wire->beginTransmission(MPU_6050_ADDR);
+    // Get the initial value TODO: Maybe to a 5s average here?
+    wire->beginTransmission(MPU_6050_ADDR);
 
-  // Accessing gyro data registers
-  wire->write(MPU6050_GYRO_XOUT_H);
-  wire->endTransmission(false);
+    // Accessing gyro data registers
+    wire->write(MPU6050_GYRO_XOUT_H);
+    wire->endTransmission(false);
 
-  // Requesting gyro data
-  wire->requestFrom(MPU_6050_ADDR, 6, (int) true);
+    // Requesting gyro data
+    wire->requestFrom(MPU_6050_ADDR, 6, (int) true);
 
-  // Storing raw gyro data
-  initial_x = wire->read() << 8;
-  initial_x |= wire->read();
+    // Storing raw gyro data
+    initial_x = wire->read() << 8;
+    initial_x |= wire->read();
 
-  initial_y = wire->read() << 8;
-  initial_y |= wire->read();
+    initial_y = wire->read() << 8;
+    initial_y |= wire->read();
 
-  initial_z = wire->read() << 8;
-  initial_z |= wire->read();
+    initial_z = wire->read() << 8;
+    initial_z |= wire->read();
 }
 
 void read_mpu_data(void) {
-	wire->beginTransmission(MPU_6050_ADDR);
+    wire->beginTransmission(MPU_6050_ADDR);
 
-	// Accessing gyro data registers
-	wire->write(MPU6050_GYRO_XOUT_H);
-	wire->endTransmission(false);
+    // Accessing gyro data registers
+    wire->write(MPU6050_GYRO_XOUT_H);
+    wire->endTransmission(false);
 
-	// Requesting gyro data
-	wire->requestFrom(MPU_6050_ADDR, 6, (int) true);
+    // Requesting gyro data
+    wire->requestFrom(MPU_6050_ADDR, 6, (int) true);
 
-	// Storing raw gyro data
-	raw_x = wire->read() << 8;
-	raw_x |= wire->read();
+    // Storing raw gyro data
+    raw_x = wire->read() << 8;
+    raw_x |= wire->read();
 
-	raw_y = wire->read() << 8;
-	raw_y |= wire->read();
+    raw_y = wire->read() << 8;
+    raw_y |= wire->read();
 
-	raw_z = wire->read() << 8;
-	raw_z |= wire->read();
+    raw_z = wire->read() << 8;
+    raw_z |= wire->read();
 
-  float dt = (millis() - intervalStart) * 0.001;
-  // Computing gyro angles
-	roll = (roll + ((float)raw_x - initial_x) * GYRO_TRANSFORMATION_NUMBER * dt);
-	pitch = (pitch + ((float)raw_y - initial_y) * GYRO_TRANSFORMATION_NUMBER * dt);
-  yaw = (yaw + ((float)raw_z - initial_z) * GYRO_TRANSFORMATION_NUMBER * dt);
-  intervalStart = millis();
+    float dt = (millis() - intervalStart) * 0.001;
+    // Computing gyro angles
+    roll = (roll + ((float)raw_x - initial_x) * GYRO_TRANSFORMATION_NUMBER * dt);
+    pitch = (pitch + ((float)raw_y - initial_y) * GYRO_TRANSFORMATION_NUMBER * dt);
+    yaw = (yaw + ((float)raw_z - initial_z) * GYRO_TRANSFORMATION_NUMBER * dt);
+    intervalStart = millis();
 }
 
 static void RegisterWrite(byte registerAddress, byte data) {
-  // Starting transmission for MPU6050
-  wire->beginTransmission(MPU_6050_ADDR);
+    // Starting transmission for MPU6050
+    wire->beginTransmission(MPU_6050_ADDR);
 
-  // Accessing register
-  wire->write(registerAddress);
+    // Accessing register
+    wire->write(registerAddress);
 
-  // Writing data
-  wire->write(data);
+    // Writing data
+    wire->write(data);
 
-  // Closing transmission
-  wire->endTransmission();
+    // Closing transmission
+    wire->endTransmission();
 }
 
 attitude_angles_t get_mpu_attitude(void) {
+    roll = (roll >= 180) ? roll - 360 : roll;
+    roll = (roll <= -180) ? roll + 360 : roll;
+    pitch = (pitch >= 180) ? pitch - 360: pitch;
+    pitch = (pitch <= -180) ? pitch + 360: pitch;
+    yaw = (yaw >= 180) ? yaw - 360: yaw;
+    yaw = (yaw <= -180) ? yaw + 360: yaw;
     attitude_angles_t ret = {roll, pitch, yaw, 0.0f};
     return ret;
 }

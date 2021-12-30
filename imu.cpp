@@ -36,12 +36,7 @@ void task_read_rpy(void * pvParameters) {
 }
 
 attitude_t get_attitude(void) {
-    attitude_t ret;
     attitude_angles_t imu_att = get_mpu_attitude();
-    Serial.printf("pitch = %f, roll = %f, yaw = %f\n", imu_att.pitch, imu_att.roll, imu_att.yaw);
-    ret.pitch = RPY_TO_GDL_90(imu_att.yaw);
-    ret.roll = RPY_TO_GDL_90(imu_att.pitch);
-    // ret.heading = RPY_TO_GDL_90(imu_att.roll);
-    ret.heading = 0x7FFF;
-    return ret;
+    // Angles and directions set for my expected mounting here.
+    return {RPY_TO_GDL_90(imu_att.pitch), RPY_TO_GDL_90(imu_att.yaw), 0x7FFF};
 }
