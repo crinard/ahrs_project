@@ -5,10 +5,14 @@
 #include <stdint.h>
 
 typedef struct attitude_t {
-  int16_t roll;
-  int16_t pitch;
+  int16_t roll, pitch, heading;
 } attitude_t;
+
+typedef struct attitude_angles_t {
+  float roll, pitch, yaw, heading;
+} attitude_angles_t;
 
 void imu_init(void);
 attitude_t get_attitude(void);
+
 #endif //IMU_H
