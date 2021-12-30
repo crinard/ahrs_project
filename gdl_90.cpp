@@ -4,8 +4,7 @@
 #include <WiFiAP.h>
 #include <WiFiUdp.h>
 #include "imu.h"
-
-#define ms_to_tick(x) x/portTICK_PERIOD_MS //Arduino default ticks.
+#include "defines.h"
 
 
 /****** Defines ******/
@@ -53,7 +52,7 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1 // Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  FAST_CORE);
 
  xTaskCreatePinnedToCore(
    TaskSendAHRS
@@ -62,7 +61,7 @@ void gdl_90_init(void) {
    ,  NULL
    ,  3  //Priority (0-3)
    ,  NULL 
-   ,  ARDUINO_RUNNING_CORE);
+   ,  FAST_CORE);
 
   xTaskCreatePinnedToCore(
     TaskGetFFIP
@@ -71,7 +70,7 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1  //Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  FAST_CORE);
   xTaskCreatePinnedToCore(
     TaskSendID
     ,  "Send ID messages to Foreflight."
@@ -79,15 +78,15 @@ void gdl_90_init(void) {
     ,  NULL
     ,  1  //Priority (0-3)
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
-//  xTaskCreatePinnedToCore(
-//    TaskSendAHRSReport
-//    ,  "Send AHRS report messages to Foreflight."
-//    ,  4096  // Stack size 
-//    ,  NULL
-//    ,  3  //Priority (0-3)
-//    ,  NULL 
-//    ,  ARDUINO_RUNNING_CORE);
+    ,  FAST_CORE);
+ xTaskCreatePinnedToCore(
+   TaskSendAHRS
+   ,  "Send AHRS report messages to Foreflight."
+   ,  4096  // Stack size 
+   ,  NULL
+   ,  3  //Priority (0-3)
+   ,  NULL 
+   ,  FAST_CORE);
     
   
 }
@@ -135,7 +134,7 @@ static void TaskGetFFIP (void *pvParameters ) {
       int len = udp.read(rx_buf, 255);
       Serial.println("Contents:");
     }
-    vTaskDelay(ms_to_tick(5000)); //Wait 5 seconds, max frequency of inbound messages.
+    vTaskDelay(MS_TO_TICK(5000)); //Wait 5 seconds, max frequency of inbound messages.
   }
 }
 
@@ -151,7 +150,7 @@ static void TaskSendHeartbeatMsg( void *pvParameters ) {
       }
       udp.endPacket();
     }
-    vTaskDelay(ms_to_tick(1000));
+    vTaskDelay(MS_TO_TICK(1000));
   }
 }
 
@@ -169,16 +168,15 @@ void TaskSendAHRS(void *pvParameters) {
     if (m_foreflight_ip != IPAddress(192,168,255,255)) { //TODO: make this a flag.
       attitude_t attitude = get_attitude();
       update_ahrs_msg(&ahrs_msg[0], sizeof(ahrs_msg), attitude);
-      Serial.printf("msg[3] = %i, msg[4] = %i\n", ahrs_msg[3], ahrs_msg[4]);
+//      Serial.printf("msg[3] = %i, msg[4] = %i\n", ahrs_msg[3], ahrs_msg[4]);
       udp.beginPacket(m_foreflight_ip, TX_PORT);
-      #pragma unroll(full)
       for(size_t i = 0; i < sizeof(ahrs_msg); i++) {
         udp.write(ahrs_msg[i]);
       }
       udp.endPacket();
       Serial.println("AHRS sent");
     }
-    vTaskDelay(ms_to_tick(200));
+    vTaskDelay(MS_TO_TICK(200));
   }
 }
 
@@ -202,16 +200,18 @@ static void TaskSendID( void *pvParameters) {
       }
       udp.endPacket();
     }
-    vTaskDelay(ms_to_tick(200));
+    vTaskDelay(MS_TO_TICK(200));
   }
 }
 
 static void update_ahrs_msg(unsigned char* ahrs_msg_buf, size_t buflen, attitude_t attitude) {
-    //Foreflight website says big-endian, so I'm going to need to mask the raw ints. 
-    ahrs_msg_buf[3] = (attitude.roll >> 8) & 0xFF;
-    ahrs_msg_buf[4] = attitude.roll & 0xFF;
-    ahrs_msg_buf[5] = (attitude.pitch >> 8) & 0xFF;
-    ahrs_msg_buf[6] = attitude.pitch & 0xFF;
-    crc_inject(ahrs_msg_buf, buflen);
-    return;
+  //Foreflight website says big-endian, so I'm going to need to mask the raw ints. 
+  ahrs_msg_buf[3] = (attitude.roll >> 8) & 0xFF;
+  ahrs_msg_buf[4] = attitude.roll & 0xFF;
+  ahrs_msg_buf[5] = (attitude.pitch >> 8) & 0xFF;
+  ahrs_msg_buf[6] = attitude.pitch & 0xFF;
+  ahrs_msg_buf[7] = (attitude.heading >> 8) & 0xFF;
+  ahrs_msg_buf[8] = attitude.heading & 0xFF;
+  crc_inject(ahrs_msg_buf, buflen);
+  return;
 }

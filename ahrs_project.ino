@@ -1,6 +1,7 @@
 #include <string.h>
 #include "gdl_90.h"
 #include "imu.h"
+#include "defines.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
@@ -24,7 +25,7 @@ void setup(void) {
     ,  NULL
     ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL 
-    ,  ARDUINO_RUNNING_CORE);
+    ,  FAST_CORE);
 }
 
 /*--------------------------------------------------*/
