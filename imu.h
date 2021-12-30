@@ -9,7 +9,7 @@ typedef struct attitude_t {
 } attitude_t;
 
 typedef struct attitude_angles_t {
-  float roll, pitch, heading;
+  float roll, pitch, yaw, heading;
 } attitude_angles_t;
 
 void imu_init(void);

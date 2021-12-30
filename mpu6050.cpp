@@ -21,7 +21,7 @@
 #define RPY_TO_GDL_90(x) (int16_t) (x * 10) // RPY (degrees) * 1800/180.
 static int16_t initial_x, initial_y, initial_z;
 static int16_t raw_x, raw_y, raw_z;
-static float roll, pitch;
+static float roll, pitch, yaw;
 static unsigned long intervalStart;
 static void RegisterWrite(byte registerAddress, byte data);
 static TwoWire *wire;
@@ -95,7 +95,7 @@ void read_mpu_data(void) {
   // Computing gyro angles
 	roll = (roll + ((float)raw_x - initial_x) * GYRO_TRANSFORMATION_NUMBER * dt);
 	pitch = (pitch + ((float)raw_y - initial_y) * GYRO_TRANSFORMATION_NUMBER * dt);
-//  Serial.printf("roll = %f, pitch = %f\n", roll, pitch);
+  yaw = (yaw + ((float)raw_z - initial_z) * GYRO_TRANSFORMATION_NUMBER * dt);
   intervalStart = millis();
 }
 
@@ -114,6 +114,6 @@ static void RegisterWrite(byte registerAddress, byte data) {
 }
 
 attitude_angles_t get_mpu_attitude(void) {
-    attitude_angles_t ret = {roll, pitch, 0.0f};
+    attitude_angles_t ret = {roll, pitch, yaw, 0.0f};
     return ret;
 }
