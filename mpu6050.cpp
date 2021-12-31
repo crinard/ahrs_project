@@ -9,7 +9,7 @@
  *	MPU 6050 Stuff
  */
 #define GYRO_TRANSFORMATION_NUMBER      0.01525878906 // (1 / 65.536) precalculated
-#define MPU_6050_ADDR           0x68
+#define MPU_6050_ADDR           0x69
 #define MPU6050_GYRO_XOUT_H		0x43	// Initial register address for gyro data
 // Config regs
 #define MPU6050_SMPLRT_DIV  	0x19
