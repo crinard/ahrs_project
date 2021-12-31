@@ -21,7 +21,7 @@ void imu_init(void) {
     ,  "Read from the sensor."
     ,  2048 // Stack size
     ,  NULL
-    ,  3 // Priority (0-3)
+    ,  1 // Priority (0-3)
     ,  NULL 
     ,  SLOW_CORE);
 }

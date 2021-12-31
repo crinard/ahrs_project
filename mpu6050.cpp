@@ -90,7 +90,7 @@ void read_mpu_data(void) {
 
     raw_z = wire->read() << 8;
     raw_z |= wire->read();
-
+    //TODO: Make this a critical section.
     float dt = (millis() - intervalStart) * 0.001;
     // Computing gyro angles
     roll = (roll + ((float)raw_x - initial_x) * GYRO_TRANSFORMATION_NUMBER * dt);

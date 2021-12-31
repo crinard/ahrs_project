@@ -2,6 +2,7 @@
 #include "gdl_90.h"
 #include "imu.h"
 #include "defines.h"
+#include "altimeter.h"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
@@ -13,9 +14,11 @@ void TaskBlink( void *pvParameters );
 
 // the setup function runs once when you press reset or power the board
 void setup(void) {
+//  Wire.begin();
   Serial.begin(115200);
   gdl_90_init();
   imu_init();
+  init_alt();
 
   // blink task, for debugging.
   xTaskCreatePinnedToCore(
