@@ -16,8 +16,14 @@ Two things:
 
 
 ### Current State:
-Messages other than the 1090mHz ADS-B work (don't worry about these for now). The main problem is in doing the math/intreprations required to get accurate attitude data. It should be relatively simple I2c sensor integration. 
+Messages other than the 1090mHz ADS-B work (don't worry about these for now). The main problem is in doing the math/intreprations required to get accurate attitude data. It should be relatively simple I2c sensor integration, and maybe an EKF or something similar. 
+
+I have a couple of IMUs available, tried the following:
+- MPU6050, which I've integrated and seems to be okay other than drift (which could be solved with integrating GPS and an EKF)
+- BNO085 (was good in a stationary enviroment, but terrible in an airplane. If I had to guess, it may have to do with the sensor fusion/parameter tuning already done to make this work better in a stationary enviroment)
+- [Suggested by prof](https://www.robotshop.com/en/imu-10-dof-16g-3-axis-accelerometer-2000--s-gyromagnetometerbarometer.html) (This is incoming, could work well?)
+- Not an IMU, but have this [GPS module](https://www.mouser.com/ProductDetail/SparkFun/GPS-15210?qs=Zz7%252BYVVL6bGf8coET7CrKg%3D%3D&mgh=1&gclid=Cj0KCQiA09eQBhCxARIsAAYRiymHeGObdLgaFf2PjmO-72c4x0_OGKZRrCLYyoYAehXbmmKjb3oBswoaAshFEALw_wcB) to play with. 
 
 ### Setup:
 Meant to be compiled and used with Arduino IDE, with the Adafruit ESP32 Feather packages.
-ESP32 + IMU to integrate backup AHRS with ForeFlight. 
+ESP32 + IMU to integrate backup AHRS with ForeFlight. Pretty simple Arduino setup. On ForeFlight functionality, this could use some tests and I can hook you up.
