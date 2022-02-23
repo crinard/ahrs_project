@@ -10,9 +10,8 @@ Two things:
 - [attitude indicators](https://en.wikipedia.org/wiki/Attitude_indicator)
 - [MEMS sensors](https://jewellinstruments.com/support/how-does-a-mems-sensor-work/)
 - [Foreflight Communication Protocol](https://www.foreflight.com/connect/spec/)
-- [ESP32](TODO)
-- [EKF](TODO)
-- 
+- [ESP32](https://www.adafruit.com/product/3405)
+- Extended Kalman Filters, recommend you looking into this
 
 
 ### Current State:
